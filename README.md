@@ -21,7 +21,11 @@ Currently in development.
 # Installation
 - Install [Arduino IDE](https://www.arduino.cc/)
 - Download [Lafvintech Arduino Obstacle Avoidance Car Kit V1.1](https://www.dropbox.com/sh/a9449isour59wxb/AABICqcGMIcvmcbBOA_38-Tsa?e=7&dl=0) zip file
-- Extract the zip file
+- Add library to Arduino IDE
+  - Open Arduino IDE
+  - Go to `Sketch` -> `Include Library` -> `Add .ZIP Library...`
+  - Select `LafvinCarKitV1.1.zip` from the zip file
+- Extract the zip file to access the example code
 - Open `autoMaze.ino` in Arduino IDE
 - Connect the Arduino to PC
 - Upload the code to the Arduino
