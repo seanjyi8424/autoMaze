@@ -1,6 +1,6 @@
-# cs179j-autoMaze [Work in Progress]
-##### Authors: Eric Choi, Artip Nakchinda, Sean Yi
-Two autonomous RC cars finding an exit in a maze.
+# CS179J - Autonomous Vehicle Maze [Work in Progress]
+##### Project Group ERASER: Eric Choi, Artip Nakchinda, Sean Yi
+This project is about two autonomous RC cars working together to find an exit out of a maze.
 Currently in development.
 
 # Parts
