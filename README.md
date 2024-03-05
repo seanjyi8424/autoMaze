@@ -1,10 +1,7 @@
 # cs179j-autoMaze [Work in Progress]
+##### Authors: Eric Choi, Artip Nakchinda, Sean Yi
 Two autonomous RC cars finding an exit in a maze.
 Currently in development.
-# Authors:
-- Eric Choi
-- Artip Nakchinda
-- Sean Yi
 
 # Parts
 - 2x Arduino Uno (or any other Arduino)
@@ -39,6 +36,16 @@ Currently in development.
 - Turn on the car
 - Place the car in the maze
 - Watch the car navigate through the maze
+
+# Circuit Diagram
+![Expanded Circuit Diagram](./images/circuitdiag_v1.png)
+This is the circuit diagram for one of our autonomous RC vehicles.
+
+# Code
+- The main vehicle software is located in the `mainCode` folder.
+- The `refCode` folder contains code from different sources
+  - This also includes some original/modified code to understand how each component works better.
+- You can load any of the code into the Arduino to test components, or load the main code to see all of it working together.
 
 # References
 - [Arduino](https://www.arduino.cc/)
