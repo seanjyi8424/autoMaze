@@ -38,7 +38,7 @@ Currently in development.
 - Watch the car navigate through the maze
 
 # Circuit Diagram
-![Expanded Circuit Diagram](./images/circuitdiag_v1.png)
+<!-- ![Expanded Circuit Diagram](./images/circuitdiag_v1.png) -->
 This is the circuit diagram for one of our autonomous RC vehicles.
 
 # Code
