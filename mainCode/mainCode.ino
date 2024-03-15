@@ -22,22 +22,25 @@
 // #include <Vector.h>
 
 // *** SET THESE VARIABLES FIRST BEFORE UPLOADING TO VEHICLE ***
-#define DRIVE_SELECT   2    // 1 = Main Drive Function, 
-                            // 2 = Lane Keep Drive Only, 
-                            // 3 = Ultrasonic Obstacle Avoidance
-#define VEHICLE_SELECT 1    // Vehicle 1 = 1; 
+#define DRIVE_SELECT    1    // 1 = Main Drive Function, 
+                             // 2 = Lane Keep Drive Only, 
+                             // 3 = Ultrasonic Obstacle Avoidance
+#define VEHICLE_SELECT  1    // Vehicle 1 = 1; 
                             // Vehicle 2 = 2; 
-#define START_POS_X    0    // Starting Position in maze
-#define START_POS_Y    0
+#define VEHICLE_SPEED   95  // Speed of the vehicle
+#define TURN_SPEED      85  // Speed of the vehicle when turning
+#define START_POS_X     0    // Starting Position in maze
+#define START_POS_Y     0
+#define START_DIRECTION EAST // Starting Direction in maze
 // *** SET THESE VARIABLES FIRST BEFORE UPLOADING TO VEHICLE ***
 
 // Motor Controller Pins
 #define Lpwm_pin  5     //pin of controlling speed---- ENA of motor driver board
 #define Rpwm_pin  6    //pin of controlling speed---- ENB of motor driver board
-const int pinLB=2;             //pin of controlling turning---- IN1 of motor driver board left back
-const int pinLF=4;             //pin of controlling turning---- IN2 of motor driver board left forward
-const int pinRB=7;            //pin of controlling turning---- IN3 of motor driver board right back
-const int pinRF=8;            //pin of controlling turning---- IN4 of motor driver board right forward
+const int pinLB = 2;             //pin of controlling turning---- IN1 of motor driver board left back
+const int pinLF = 4;             //pin of controlling turning---- IN2 of motor driver board left forward
+const int pinRB = 7;            //pin of controlling turning---- IN3 of motor driver board right back
+const int pinRF = 8;            //pin of controlling turning---- IN4 of motor driver board right forward
 
 // Ultrasonic Sensor Pins
 Servo myservo;
@@ -45,7 +48,7 @@ const int Echo_Pin=A0;  // ultrasonic module   ECHO to A0
 const int Trig_Pin=A1;  // ultrasonic module  TRIG to A1
 
 // Obstacle Avoidance Sensor Pins
-const int laneKeep_L= 12; // pins
+const int laneKeep_L = 12; // pins
 const int laneKeep_R = 11;
 
 // Coordinate Pathing Variables *** IMPORTANT TODO ***
@@ -67,23 +70,30 @@ const int OPEN = 1;
 const int WALL = 2;
 const int VISITED = 3;
 
-int grid[GRID_LENGTH][GRID_WIDTH] = {
-  (0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5),
-  (1, 0), (1, 1), (1, 2), (1, 3), (1, 4), (1, 5),
-  (2, 0), (2, 1), (2, 2), (2, 3), (2, 4), (2, 5),
-  (3, 0), (3, 1), (3, 2), (3, 3), (3, 4), (3, 5)
-  }; // Grid of coordinates (4x6) excluding the walls
+// int grid[GRID_WIDTH][GRID_LENGTH] = { 
+//   (0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5),
+//   (1, 0), (1, 1), (1, 2), (1, 3), (1, 4), (1, 5),
+//   (2, 0), (2, 1), (2, 2), (2, 3), (2, 4), (2, 5),
+//   (3, 0), (3, 1), (3, 2), (3, 3), (3, 4), (3, 5)
+//   }; // Grid of coordinates (4x6)
 
+int exploration[GRID_WIDTH][GRID_LENGTH] = {
+  (0, 0, 0, 0, 0, 0),
+  (0, 0, 0, 0, 0, 0),
+  (0, 0, 0, 0, 0, 0),
+  (0, 0, 0, 0, 0, 0)
+  }; // exploration grid, 0 = unexplored, 1 = open, 2 = wall, 3 = visited
 
-int vehicleSelect = VEHICLE_SELECT;
+int vehicleSelect = VEHICLE_SELECT; // not sure if needed...
+
 bool pathFound = false;
 int stepCounter = 0;
 int currPos[2] = {START_POS_X, START_POS_Y}; // Current position
-int path[2][MAX_PATH_LENGTH] = {(0, 0)}; // Path to follow
+int path[MAX_PATH_LENGTH][2] = {(START_POS_X, START_POS_Y) }; // Path to follow
 
 // Vehicle 2 Variables (the secondary vehicle)
-int currPos2[2] = {0, 0}; // Current position
-int path2[2][MAX_PATH_LENGTH] = {{0, 0}}; // Path to follow
+int currPos2[2] = {0, 0}; // Current position (not sure if needed)*
+int path2[MAX_PATH_LENGTH][2] = {(0, 0)}; // Path to follow
 
 
 // typedef Vector <int> currentPos; // Current position
@@ -91,7 +101,7 @@ int path2[2][MAX_PATH_LENGTH] = {{0, 0}}; // Path to follow
 // typedef Vector <Vector <int>> grid; // Grid of coordinates (4x6) excluding the walls
 
 enum Direction {NORTH, SOUTH, EAST, WEST};
-Direction currentDir = NORTH;
+Direction currentDir = START_DIRECTION; 
 
 void turnRight(){
   switch(currentDir){
@@ -138,68 +148,36 @@ void turnLeft(){
 //  - sendPath() // important functons
 //  - recvPath()
 
-char command = 'S';
-bool BT_sendCurrPos = false;
-bool BT_sendPath    = false;
-void sendCommunication() {
-  if(BT_sendCurrPos == true) {
-    Serial.write('C');
-    sendPos();
-  }
-  if(BT_sendPath == true) {
-    Serial.write('P');
-    sendPath();
-  }
-  if(BT_sendCurrPos == false && BT_sendPath == false) {
-    Serial.write('S');
-  }
-  else {
-    Serial.write('E');
-  }
-}
-void recvCommunication() {
-  if (Serial.available() > 0) {
-    char command = Serial.read();
-    switch(command) {
-      case 'C':
-        BT_sendCurrPos = true;
-        break;
-      case 'P':
-        BT_sendPath = true;
-        break;
-      case 'S':
-        BT_sendCurrPos = false;
-        BT_sendPath = false;
-        break;
-      default:
-        BT_sendCurrPos = false;
-        BT_sendPath = false;
-        break;
-    }
-  }
+char command = 'S'; // default: no data to transmit
+int BT_pathCounter = 0; // temporary.
+int BT_pathCounter2 = 0;
 
-}
-void recvPos() {
-  if(Serial.available() > 0) {
-    currPos2[0] = Serial.read();
-    currPos2[1] = Serial.read();
-  }
-}
-void sendPos() {
-  Serial.write(currPos[0]);
-  Serial.write(currPos[1]);
-}
+bool BT_sendPath1 = false;
+bool BT_recvPath1 = false;
 
+bool BT_sendPath2 = false;
+bool BT_recvPath2 = false;
 
 void recvPath() {
   if(Serial.available() > 0) {
     // path = Serial.read();
+    for (int i = 0; i < MAX_PATH_LENGTH || Serial.available() > 0; i++) {
+      path2[0][i] = Serial.read();
+      path2[1][i] = Serial.read();
+    }
+    // etc...; though there's probably a better way to do this.
 
   }
 }
 void sendPath() {
   if(pathFound == true) {
-    
+    for(int i = 0; i < MAX_PATH_LENGTH; i++) {
+      Serial.write(path[i][0]);
+      Serial.write(path[i][1]);
+    }
+  }
+  else {
+    Serial.write('E'); // error
   }
 }
 
@@ -214,7 +192,10 @@ int currState_R;
 
 bool lineDetected_L = false;
 bool lineDetected_R = false;
+bool lineTimeDetected_L = false;
+bool lineTimeDetected_R = false;
 // bool lineDetected_F = false;
+
 
 void laneKeep() { 
   // TODO: Implement Lane Keep function using the two obstacle avoidance sensors
@@ -225,21 +206,21 @@ void laneKeep() {
   currState_L = digitalRead(laneKeep_L);
   currState_R = digitalRead(laneKeep_R);
 
-  if (lastState_L == HIGH && currState_L == LOW) { 
+  if (currState_L == LOW) {// lastState_L == HIGH && currState_L == LOW) { 
     Serial.println("Line not detected on the left");
     lineDetected_L = 0; 
   } 
-  else if (lastState_L == LOW && currState_L == HIGH) { 
+  else if (currState_L == HIGH) { // lastState_L == LOW && currState_L == HIGH) { 
     Serial.println("Line detected on the left");
     lineDetected_L = 1; 
     // If the line is detected on the left, then the vehicle should turn right
   }
   
-  if (lastState_R == HIGH && currState_R == LOW) {
+  if (currState_R == LOW) { // lastState_R == HIGH && currState_R == LOW) {
     Serial.println("Line not detected on the right");
     lineDetected_R = 0;
   }
-  else if (lastState_R == LOW && currState_R == HIGH) {
+  else if (currState_R == HIGH) { // lastState_R == LOW && currState_R == HIGH) {
     Serial.println("Line detected on the right");
     lineDetected_R = 1;
     // If the line is detected on the right, then the vehicle should turn left
@@ -250,12 +231,12 @@ void laneKeep() {
   //      lineDetected_L == lineDetected_R) {
   //     }
 
-  lastState_L = currState_L;
-  lastState_R = currState_R;
+  // lastState_L = currState_L;
+  // lastState_R = currState_R;
 }
 
 // Ultrasonic Sensor
-#define USS_DETECT_DISTANCE 15 // Minimum distance to detect a wall/obstacle
+#define USS_DETECT_DISTANCE 18 // Minimum distance to detect a wall/obstacle
 volatile int Front_Distance;
 volatile int Left_Distance;
 volatile int Right_Distance;
@@ -276,27 +257,25 @@ float checkdistance() {
 
 void USS_ResetPos() {
   myservo.write(90);
-  delay(400);
+  delay(100);
 }
 void USS_CheckLeft() {
   myservo.write(180);
-  delay(400);
+  delay(500);
   Left_Distance = checkdistance();
-  delay(600);
   Serial.print("Left_Distance:");
 }
 void USS_CheckRight() {
   myservo.write(0);
-  delay(400);
+  delay(500);
   Right_Distance = checkdistance();
-  delay(600);
   Serial.print("Right_Distance:");
   Serial.println(Right_Distance);
 }
 void USS_CheckFront() {
   myservo.write(90);
+  delay(500);
   Front_Distance = checkdistance();
-  delay(600);
   Serial.print("Front_Distance:");
   Serial.println(Front_Distance);
 }
@@ -305,6 +284,8 @@ void USS_Main() { // Original obstacle avoidance function, uses only the ultraso
   USS_clearFront = true;
   USS_clearLeft  = true;
   USS_clearRight = true;
+  lineDetected_L = false;
+  lineDetected_R = false;
 
   Front_Distance = checkdistance(); // obtain the value detected by ultrasonic sensor 
   USS_CheckFront();
@@ -315,11 +296,11 @@ void USS_Main() { // Original obstacle avoidance function, uses only the ultraso
     stopp(); //stop
     delay(150);
     USS_CheckFront();
-    delay(600);
+    delay(150);
     USS_CheckLeft();
-    delay(600);
+    delay(150);
     USS_CheckRight();
-    delay(600);
+    delay(150);
     USS_ResetPos();
 
     if (Front_Distance < USS_DETECT_DISTANCE) {
@@ -355,31 +336,49 @@ void USS_Main() { // Original obstacle avoidance function, uses only the ultraso
 // bool stop     = true;
 
 // --- DRIVE MODES ---
+#define TURN_DELAY 250 // Adjust value as needed 
+                       // to achieve 90-degree turns(milliseconds)
+
+unsigned long sensorTriggerTimeL = 0;
+unsigned long sensorTriggerTimeR = 0;
+const unsigned long sensorDelay = 500; // 50 milliseconds
 
 void Drive_Main() {
   USS_clearFront = true;
   USS_clearLeft  = true;
   USS_clearRight = true;
 
+  lineTimeDetected_L = digitalRead(laneKeep_L);
+  lineTimeDetected_R = digitalRead(laneKeep_R);
+
   lineDetected_L = false;
   lineDetected_R = false;
+  // Serial.println(millis());
+  bool sensCheck = false;
+  if (lineTimeDetected_L) {
+    sensorTriggerTimeL = millis();
+  }
+  if (lineTimeDetected_R) {
+    sensorTriggerTimeR = millis();
+  }
 
-
+   if ((lineTimeDetected_L) && (millis() - sensorTriggerTimeR <= sensorDelay)) {
+    sensCheck = true;
+   } else if((lineDetected_R) && (millis() - sensorTriggerTimeL <= sensorDelay)) {
+    sensCheck = true;
+   } 
   USS_Main();
   if (USS_clearFront == true && USS_clearLeft == true && USS_clearRight == true) {
     // Ultrasonic sensor clear
     laneKeep();
     if (lineDetected_L == 0 && lineDetected_R == 0) { // No line detected
-      go_forward(100);
+      go_forward(VEHICLE_SPEED);
     }
-    else if (lineDetected_L == 0 && lineDetected_R == 1) { // Line detected on the right
-      laneKeep_left(100);
-    }
-    else if (lineDetected_L == 1 && lineDetected_R == 0) { // Line detected on the left
-      laneKeep_right(100);
-    }
-    else if (lineDetected_L == 1 && lineDetected_R == 1) { // Line in front
+    else if (lineDetected_L == 1 && lineDetected_R == 1 && sensCheck == true) { // Line in front
+      go_forward(VEHICLE_SPEED);
+      delay(1200);
       stopp();
+      delay(1000);
       switch (currentDir) {
         case NORTH:
           currPos[1]++; // Move up in the grid
@@ -398,69 +397,80 @@ void Drive_Main() {
       path[1][stepCounter] = currPos[1];
       stepCounter++;
     }
+    else if (lineDetected_L == 0 && lineDetected_R == 1) { // Line detected on the right
+      go_backward(VEHICLE_SPEED);
+      delay(350);
+      laneKeep_left(VEHICLE_SPEED);
+    }
+    else if (lineDetected_L == 1 && lineDetected_R == 0) { // Line detected on the left
+      go_backward(VEHICLE_SPEED);
+      delay(350);
+      laneKeep_right(VEHICLE_SPEED);
+    }
     else {
-      stopp();
+      stopp(); // If something weird happens...
     }
   }
   else if (USS_clearFront == false &&
            USS_clearLeft  == true  && USS_clearRight == false) { // Left is clear
-    rotate_left(150);
-    delay(300);
+    rotate_left(TURN_SPEED);
+    delay(TURN_DELAY);
   }
   else if (USS_clearFront == false && 
            USS_clearLeft  == false && USS_clearRight == true) {  // Right is clear
-    rotate_right(150);
-    delay(300);
+    rotate_right(TURN_SPEED);
+    delay(TURN_DELAY);
   }
   else if (USS_clearFront == false && 
            USS_clearLeft  == true  && USS_clearRight == true) { // Left and Right are clear
     if (Left_Distance > Right_Distance) {
-      rotate_left(150);
+      rotate_left(TURN_SPEED);
     }
     else {
-      rotate_right(150);
+      rotate_right(TURN_SPEED);
     }
-    delay(300);
+    delay(TURN_DELAY);
   }
   else if (USS_clearFront == true  &&
            USS_clearLeft  == false && USS_clearRight == false) { // Front is clear
-    go_forward(100);
+    go_forward(VEHICLE_SPEED);
   }
   else if (USS_clearFront == true && 
            USS_clearLeft  == true && USS_clearRight == true) { // All are clear
-    go_forward(100);
+    go_forward(VEHICLE_SPEED);
   }
   else if (USS_clearFront == false &&
            USS_clearLeft  == false && USS_clearRight == false) { // All are blocked
-    rotate_left(150); // replace with a 180 turn
-    delay(600);
+    rotate_left(TURN_SPEED); // replace with a 180 turn
+    delay(TURN_DELAY);
   }
   else {
-    stopp();
+    stopp(); // If something weird happens...
   }
 }
 
 void laneKeep_Drive() {  // Motor Drive function using the lane keep function only
   laneKeep();
   if (lineDetected_L == 0 && lineDetected_R == 0) {
-    go_forward(100);
+    go_forward(VEHICLE_SPEED);
   }
   else if (lineDetected_L == 0 && lineDetected_R == 1) {
-    // rotate_left(100);
-    laneKeep_left(100);
+    // rotate_left(VEHICLE_SPEED);
+    laneKeep_left(VEHICLE_SPEED);
   }
   else if (lineDetected_L == 1 && lineDetected_R == 0) {
-    // rotate_right(100);
-    laneKeep_right(100);
+    // rotate_right(VEHICLE_SPEED);
+    laneKeep_right(VEHICLE_SPEED);
   }
   else if (lineDetected_L == 1 && lineDetected_R == 1) {
-    stopp();
+    go_forward(VEHICLE_SPEED);
   }
   else { // If something weird happens...
     stopp();
     Serial.println("Error: Lane Keep Drive");
   }
 }
+
 void Ultrasonic_obstacle_avoidance() // Original obstacle avoidance function
 {
   Front_Distance=checkdistance(); //obtain the value detected by ultrasonic sensor 
@@ -478,20 +488,20 @@ void Ultrasonic_obstacle_avoidance() // Original obstacle avoidance function
     delay(100);
 if(Left_Distance > Right_Distance)//if distance a1 is greater than a2
     {
-      rotate_left(150);//turn left
+      rotate_left(TURN_SPEED);//turn left
       myservo.write(90);
       delay(300); 
     }
     else //if the right distance is greater than the left
     {
-      rotate_right(150);// turn right
+      rotate_right(TURN_SPEED);// turn right
       myservo.write(90);
       delay(300); 
     }
   }
   else//otherwise
   {
-    go_forward(100);//go forward
+    go_forward(VEHICLE_SPEED);//go forward
   }
 }
 // --- DRIVE MODES ---
@@ -546,19 +556,33 @@ void rotate_right(unsigned char speed_val) {   // speed_val：0~255
 void laneKeep_left(unsigned char speed_val) { // Correct the vehicle to the left
   digitalWrite(pinRB,HIGH);                   // speed_val: 0~255
   digitalWrite(pinRF,LOW );  
-  digitalWrite(pinLB,HIGH); 
+  digitalWrite(pinLB,LOW); 
   digitalWrite(pinLF,HIGH);
-  analogWrite(Lpwm_pin,speed_val / 2);
+  analogWrite(Lpwm_pin,speed_val / 2); // left motor
   analogWrite(Rpwm_pin,speed_val);
 }
 void laneKeep_right(unsigned char speed_val) { // Correct the vehicle to the right
-  digitalWrite(pinRB,HIGH);                    // speed_val: 0~255
+  digitalWrite(pinRB,LOW);                    // speed_val: 0~255
   digitalWrite(pinRF,HIGH);  
   digitalWrite(pinLB,HIGH); 
   digitalWrite(pinLF,LOW );
   analogWrite(Lpwm_pin,speed_val);
   analogWrite(Rpwm_pin,speed_val / 2);
 }
+
+void turnUntil(unsigned char speed_val) {
+  while (currentDir != SOUTH) {
+    Serial.println("Current Direction: " + currentDir);
+    rotate_left(speed_val);
+    delay(TURN_DELAY);
+    stopp();
+    delay(1000);
+  }
+  Serial.println("Stopped!");
+
+  stopp();
+}
+
 void stopp() {      //stop
   digitalWrite(pinRB,HIGH);
   digitalWrite(pinRF,HIGH);
@@ -592,9 +616,9 @@ void setup(){
   pinMode(Rpwm_pin,OUTPUT);  // pin 6(PWM)  
 
   // Set all indexes as unexplored //
-  for (int i = 0; i < GRID_LENGTH; i++) {
-    for (int j = 0; j < GRID_WIDTH; j++) {
-      grid[i][j] = UNEXPLORED;
+  for (int i = 0; i < GRID_WIDTH; i++) {
+    for (int j = 0; j < GRID_LENGTH; j++) {
+      exploration[i][j] = UNEXPLORED;
     }
   }
 }
@@ -610,9 +634,38 @@ void loop(){
     case 3: // Ultrasonic Obstacle Avoidance
       Ultrasonic_obstacle_avoidance();
       break;
+    case 4:
+      turnUntil(VEHICLE_SPEED);
+      break;
     default: 
       stopp();
       Serial.println("Error: Drive Mode not selected.");
       break;
     }
 }
+
+// unsigned long sensorTriggerTimeL = 0;
+// unsigned long sensorTriggerTimeR = 0;
+// const unsigned long sensorDelay = 50; // 50 milliseconds
+
+// void loop() {
+//   // Assuming sensorLeft and sensorRight are the left and right sensors
+//   bool sensorL = digitalRead(laneKeep_L);
+//   bool sensorR = digitalRead(laneKeep_R);
+
+//   if (sensorL) {
+//     sensorTriggerTimeL = millis();
+//   }
+
+//   if (sensorR) {
+//     sensorTriggerTimeR = millis();
+//   }
+
+//   if (sensorL && millis() - sensorTriggerTimeR <= sensorDelay) {
+    
+//   } else if (sensorR && millis() - sensorTriggerTimeL <= sensorDelay) {
+    
+//   } else {
+//     // Only one sensor triggered, lane keep this
+//   }
+// }
