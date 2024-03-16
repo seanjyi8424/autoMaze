@@ -1,5 +1,5 @@
 #include <IRremote.h>
-int RECV_PIN = 12;
+int RECV_PIN = 10;
 IRrecv irrecv(RECV_PIN);
 decode_results results;
 #define IR_Go      0x00ff629d
@@ -72,18 +72,23 @@ void IR_Control(void)
      Key = results.value;
     switch(Key)
      {
-       case IR_Go:go_forward(150);   //UP
-       break;
-       case IR_Back:go_backward(150);   //back
-       break;
-       case IR_Left:rotate_left(100);   //Left    
-       break;
-       case IR_Right:rotate_right(100); //Righ
-       break;
-       case IR_Stop:stopp();   //stop
-       break;
+       case IR_Go:
+        go_forward(150);   //UP
+        break;
+       case IR_Back:
+        go_backward(150);   //back
+        break;
+       case IR_Left:
+        rotate_left(100);   //Left    
+        break;
+       case IR_Right:
+        rotate_right(100); //Righ
+        break;
+       case IR_Stop:
+        stopp();   //stop
+        break;
        default: 
-       break;      
+        break;      
      } 
      irrecv.resume(); // Receive the next value
     } 

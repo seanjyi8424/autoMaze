@@ -25,12 +25,14 @@
 #define DRIVE_SELECT    1    // 1 = Main Drive Function, 
                              // 2 = Lane Keep Drive Only, 
                              // 3 = Ultrasonic Obstacle Avoidance
-#define VEHICLE_SELECT  1    // Vehicle 1 = 1; 
+#define VEHICLE_SELECT  2    // Vehicle 1 = 1; 
                             // Vehicle 2 = 2; 
 #define VEHICLE_SPEED   95  // Speed of the vehicle
 #define TURN_SPEED      85  // Speed of the vehicle when turning
-#define START_POS_X     0    // Starting Position in maze
+#define START_POS_X     2    // Starting Position in maze
 #define START_POS_Y     0
+// Vehicle 1: 0,0
+// Vehicle 2: 3,0
 #define START_DIRECTION EAST // Starting Direction in maze
 // *** SET THESE VARIABLES FIRST BEFORE UPLOADING TO VEHICLE ***
 
@@ -59,9 +61,9 @@ const int laneKeep_R = 11;
     - vehicleSelect (vehicle 1 or 2)
     - pathFound (boolean)
 */
-#define MAX_PATH_LENGTH 10
-#define MAX_GRID_LENGTH 10
-#define MAX_GRID_WIDTH  10
+#define MAX_PATH_LENGTH 50
+#define MAX_GRID_LENGTH 30
+#define MAX_GRID_WIDTH  30
 #define GRID_WIDTH      4
 #define GRID_LENGTH     6
 
@@ -78,9 +80,10 @@ const int VISITED = 3;
 //   }; // Grid of coordinates (4x6)
 
 int exploration[GRID_WIDTH][GRID_LENGTH] = {
-  (0, 0, 0, 0, 0, 0),
-  (0, 0, 0, 0, 0, 0),
-  (0, 0, 0, 0, 0, 0),
+  (0, 0, 0, 0, 0, 0), // x, y -- -- >
+  (0, 0, 0, 0, 0, 0), // |
+  (0, 0, 0, 0, 0, 0), // |
+  (0, 0, 0, 0, 0, 0),  // v
   (0, 0, 0, 0, 0, 0)
   }; // exploration grid, 0 = unexplored, 1 = open, 2 = wall, 3 = visited
 
@@ -149,35 +152,28 @@ void turnLeft(){
 //  - recvPath()
 
 char command = 'S'; // default: no data to transmit
-int BT_pathCounter = 0; // temporary.
-int BT_pathCounter2 = 0;
+int BT_stepCounter = 0;
 
-bool BT_sendPath1 = false;
-bool BT_recvPath1 = false;
-
-bool BT_sendPath2 = false;
-bool BT_recvPath2 = false;
+bool BT_sendPath = false;
 
 void recvPath() {
   if(Serial.available() > 0) {
+    BT_stepCounter = Serial.read();
     // path = Serial.read();
     for (int i = 0; i < MAX_PATH_LENGTH || Serial.available() > 0; i++) {
-      path2[0][i] = Serial.read();
-      path2[1][i] = Serial.read();
+      for (int j = 0; j < 2; j++) {
+        path2[i][j] = Serial.read();
+      }
     }
     // etc...; though there's probably a better way to do this.
 
   }
 }
 void sendPath() {
-  if(pathFound == true) {
-    for(int i = 0; i < MAX_PATH_LENGTH; i++) {
-      Serial.write(path[i][0]);
-      Serial.write(path[i][1]);
-    }
-  }
-  else {
-    Serial.write('E'); // error
+  Serial.write(static_cast<int>(stepCounter));
+  for(int i = 0; i < MAX_PATH_LENGTH; i++) {
+    Serial.write(path[i][0]);
+    Serial.write(path[i][1]);
   }
 }
 
@@ -208,21 +204,21 @@ void laneKeep() {
 
   if (currState_L == LOW) {// lastState_L == HIGH && currState_L == LOW) { 
     Serial.println("Line not detected on the left");
-    lineDetected_L = 0; 
+    lineDetected_L = false; 
   } 
   else if (currState_L == HIGH) { // lastState_L == LOW && currState_L == HIGH) { 
     Serial.println("Line detected on the left");
-    lineDetected_L = 1; 
+    lineDetected_L = true; 
     // If the line is detected on the left, then the vehicle should turn right
   }
   
   if (currState_R == LOW) { // lastState_R == HIGH && currState_R == LOW) {
     Serial.println("Line not detected on the right");
-    lineDetected_R = 0;
+    lineDetected_R = false;
   }
   else if (currState_R == HIGH) { // lastState_R == LOW && currState_R == HIGH) {
     Serial.println("Line detected on the right");
-    lineDetected_R = 1;
+    lineDetected_R = true;
     // If the line is detected on the right, then the vehicle should turn left
 
   }
@@ -233,6 +229,13 @@ void laneKeep() {
 
   // lastState_L = currState_L;
   // lastState_R = currState_R;
+}
+
+void laneKeep_stop() {
+  laneKeep();
+  if(lineDetected_L==true && lineDetected_R==true) {
+    stopp();
+  }
 }
 
 // Ultrasonic Sensor
@@ -341,9 +344,9 @@ void USS_Main() { // Original obstacle avoidance function, uses only the ultraso
 
 unsigned long sensorTriggerTimeL = 0;
 unsigned long sensorTriggerTimeR = 0;
-const unsigned long sensorDelay = 500; // 50 milliseconds
+const unsigned long sensorDelay = 600; // 50 milliseconds
 
-void Drive_Main() {
+void Drive_Main() { // All good - Sean
   USS_clearFront = true;
   USS_clearLeft  = true;
   USS_clearRight = true;
@@ -362,23 +365,24 @@ void Drive_Main() {
     sensorTriggerTimeR = millis();
   }
 
-   if ((lineTimeDetected_L) && (millis() - sensorTriggerTimeR <= sensorDelay)) {
+   if ((lineTimeDetected_L) && ((millis() - sensorTriggerTimeR) <= sensorDelay)) {
     sensCheck = true;
-   } else if((lineDetected_R) && (millis() - sensorTriggerTimeL <= sensorDelay)) {
+   } else if((lineTimeDetected_R) && ((millis() - sensorTriggerTimeL) <= sensorDelay)) {
     sensCheck = true;
    } 
   USS_Main();
   if (USS_clearFront == true && USS_clearLeft == true && USS_clearRight == true) {
     // Ultrasonic sensor clear
     laneKeep();
-    if (lineDetected_L == 0 && lineDetected_R == 0) { // No line detected
+    if (lineDetected_L == true && lineDetected_R == true && sensCheck == true) { // Line in front
+      // while (lineDetected_L == 1 || lineDetected_R == 1) { 
+      //   go_forward(VEHICLE_SPEED);
+      //   laneKeep();
+      // }
       go_forward(VEHICLE_SPEED);
-    }
-    else if (lineDetected_L == 1 && lineDetected_R == 1 && sensCheck == true) { // Line in front
-      go_forward(VEHICLE_SPEED);
-      delay(1200);
+      delay(500);
       stopp();
-      delay(1000);
+      USS_Main();
       switch (currentDir) {
         case NORTH:
           currPos[1]++; // Move up in the grid
@@ -396,19 +400,65 @@ void Drive_Main() {
       path[0][stepCounter] = currPos[0];
       path[1][stepCounter] = currPos[1];
       stepCounter++;
+      delay(1000);
+      laneKeep();
     }
     else if (lineDetected_L == 0 && lineDetected_R == 1) { // Line detected on the right
-      go_backward(VEHICLE_SPEED);
-      delay(350);
+      unsigned long startTime = millis();
+      while (millis() - startTime <= 350) {
+        go_backward(VEHICLE_SPEED);
+        lineDetected_L = digitalRead(laneKeep_L);
+        lineDetected_R = digitalRead(laneKeep_R);
+        if (lineDetected_L == 1 && lineDetected_R == 1) {
+          stopp();
+          return;
+        }
+      }
+      // startTime = millis();
+      // while (millis() - startTime <= 350) {
+      //   laneKeep_left(VEHICLE_SPEED);
+      //   laneKeep();
+      //   lineDetected_L = digitalRead(laneKeep_L);
+      //   lineDetected_R = digitalRead(laneKeep_R);
+      //   if (lineDetected_L == 1 && lineDetected_R == 1) {
+      //     stopp();
+      //     return;
+      //   }
+      // }
       laneKeep_left(VEHICLE_SPEED);
-    }
-    else if (lineDetected_L == 1 && lineDetected_R == 0) { // Line detected on the left
-      go_backward(VEHICLE_SPEED);
-      delay(350);
+      laneKeep();
+    } else if (lineDetected_L == 1 && lineDetected_R == 0) { // Line detected on the left
+      unsigned long startTime = millis();
+      while (millis() - startTime <= 350) {
+        go_backward(VEHICLE_SPEED);
+        lineDetected_L = digitalRead(laneKeep_L);
+        lineDetected_R = digitalRead(laneKeep_R);
+        if (lineDetected_L == 1 && lineDetected_R == 1) {
+          stopp();
+          return;
+        }
+      }
+      // startTime = millis();
+      // while (millis() - startTime <= 350) {
+      //   laneKeep_right(VEHICLE_SPEED);
+      //   laneKeep();
+      //   lineDetected_L = digitalRead(laneKeep_L);
+      //   lineDetected_R = digitalRead(laneKeep_R);
+      //   if (lineDetected_L == 1 && lineDetected_R == 1) {
+      //     stopp();
+      //     return;
+      //   }
+      // }
       laneKeep_right(VEHICLE_SPEED);
+      laneKeep();
+    }
+    else if (lineDetected_L == false && lineDetected_R == false) { // No line detected
+      go_forward(VEHICLE_SPEED);
+      laneKeep();
     }
     else {
       stopp(); // If something weird happens...
+      laneKeep();
     }
   }
   else if (USS_clearFront == false &&
@@ -431,18 +481,21 @@ void Drive_Main() {
     }
     delay(TURN_DELAY);
   }
-  else if (USS_clearFront == true  &&
-           USS_clearLeft  == false && USS_clearRight == false) { // Front is clear
-    go_forward(VEHICLE_SPEED);
-  }
-  else if (USS_clearFront == true && 
-           USS_clearLeft  == true && USS_clearRight == true) { // All are clear
-    go_forward(VEHICLE_SPEED);
-  }
+  // else if (USS_clearFront == true  &&
+  //          USS_clearLeft  == false && USS_clearRight == false) { // Front is clear
+  //   laneKeep();
+  //   go_forward(VEHICLE_SPEED);
+  // }
+  // else if (USS_clearFront == true && 
+  //          USS_clearLeft  == true && USS_clearRight == true) { // All are clear
+  //   laneKeep();
+  //   go_forward(VEHICLE_SPEED);
+  // }
   else if (USS_clearFront == false &&
            USS_clearLeft  == false && USS_clearRight == false) { // All are blocked
+    laneKeep();
     rotate_left(TURN_SPEED); // replace with a 180 turn
-    delay(TURN_DELAY);
+    delay(TURN_DELAY*2);
   }
   else {
     stopp(); // If something weird happens...
@@ -451,18 +504,18 @@ void Drive_Main() {
 
 void laneKeep_Drive() {  // Motor Drive function using the lane keep function only
   laneKeep();
-  if (lineDetected_L == 0 && lineDetected_R == 0) {
+  if (lineDetected_L == false && lineDetected_R == false) {
     go_forward(VEHICLE_SPEED);
   }
-  else if (lineDetected_L == 0 && lineDetected_R == 1) {
+  else if (lineDetected_L == false && lineDetected_R == true) {
     // rotate_left(VEHICLE_SPEED);
     laneKeep_left(VEHICLE_SPEED);
   }
-  else if (lineDetected_L == 1 && lineDetected_R == 0) {
+  else if (lineDetected_L == true && lineDetected_R == false) {
     // rotate_right(VEHICLE_SPEED);
     laneKeep_right(VEHICLE_SPEED);
   }
-  else if (lineDetected_L == 1 && lineDetected_R == 1) {
+  else if (lineDetected_L == true && lineDetected_R == true) {
     go_forward(VEHICLE_SPEED);
   }
   else { // If something weird happens...
