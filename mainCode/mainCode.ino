@@ -27,9 +27,9 @@
                              // 3 = Ultrasonic Obstacle Avoidance
 #define VEHICLE_SELECT  2    // Vehicle 1 = 1; 
                             // Vehicle 2 = 2; 
-#define VEHICLE_SPEED   95  // Speed of the vehicle
+#define VEHICLE_SPEED   90  // Speed of the vehicle
 #define TURN_SPEED      85  // Speed of the vehicle when turning
-#define START_POS_X     2    // Starting Position in maze
+#define START_POS_X     1    // Starting Position in maze
 #define START_POS_Y     0
 // Vehicle 1: 0,0
 // Vehicle 2: 3,0
@@ -83,7 +83,7 @@ int exploration[GRID_WIDTH][GRID_LENGTH] = {
   (0, 0, 0, 0, 0, 0), // x, y -- -- >
   (0, 0, 0, 0, 0, 0), // |
   (0, 0, 0, 0, 0, 0), // |
-  (0, 0, 0, 0, 0, 0),  // v
+  (0, 0, 0, 0, 0, 0), // v
   (0, 0, 0, 0, 0, 0)
   }; // exploration grid, 0 = unexplored, 1 = open, 2 = wall, 3 = visited
 
@@ -158,9 +158,10 @@ bool BT_sendPath = false;
 
 void recvPath() {
   if(Serial.available() > 0) {
+    stopp();
     BT_stepCounter = Serial.read();
     // path = Serial.read();
-    for (int i = 0; i < MAX_PATH_LENGTH || Serial.available() > 0; i++) {
+    for (int i = 0; i < BT_stepCounter || Serial.available() > 0; i++) {
       for (int j = 0; j < 2; j++) {
         path2[i][j] = Serial.read();
       }
@@ -170,10 +171,13 @@ void recvPath() {
   }
 }
 void sendPath() {
-  Serial.write(static_cast<int>(stepCounter));
-  for(int i = 0; i < MAX_PATH_LENGTH; i++) {
-    Serial.write(path[i][0]);
-    Serial.write(path[i][1]);
+  stopp();
+  Serial.write(static_cast<int>(stepCounter)); // send the number of steps in path
+
+  for(int i = 0; i < stepCounter; i++) { // send the path
+    for(int j = 0; j < 2; j++) {
+      Serial.write(path[i][j]);
+    }
   }
 }
 
@@ -382,7 +386,6 @@ void Drive_Main() { // All good - Sean
       go_forward(VEHICLE_SPEED);
       delay(500);
       stopp();
-      USS_Main();
       switch (currentDir) {
         case NORTH:
           currPos[1]++; // Move up in the grid
@@ -623,8 +626,8 @@ void laneKeep_right(unsigned char speed_val) { // Correct the vehicle to the rig
   analogWrite(Rpwm_pin,speed_val / 2);
 }
 
-void turnUntil(unsigned char speed_val) {
-  while (currentDir != SOUTH) {
+void turnUntilNot(unsigned char speed_val, Direction dir) {
+  while (currentDir == dir) {
     Serial.println("Current Direction: " + currentDir);
     rotate_left(speed_val);
     delay(TURN_DELAY);
@@ -688,7 +691,7 @@ void loop(){
       Ultrasonic_obstacle_avoidance();
       break;
     case 4:
-      turnUntil(VEHICLE_SPEED);
+      turnUntilNot(VEHICLE_SPEED, currentDir);
       break;
     default: 
       stopp();
