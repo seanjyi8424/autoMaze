@@ -1,4 +1,4 @@
-# CS179J - Autonomous Vehicle Maze
+# CS179J - Autonomous Path Finding Vehicle
 ##### Project Group ERASER: Eric Choi, Artip Nakchinda, Sean Yi
 This project is about two autonomous RC cars working together to find an exit out of a maze.
 
