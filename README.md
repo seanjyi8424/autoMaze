@@ -1,7 +1,6 @@
-# CS179J - Autonomous Vehicle Maze [Work in Progress]
+# CS179J - Autonomous Vehicle Maze
 ##### Project Group ERASER: Eric Choi, Artip Nakchinda, Sean Yi
 This project is about two autonomous RC cars working together to find an exit out of a maze.
-Currently in development.
 
 # Parts
 - 2x Arduino Uno (or any other Arduino)
