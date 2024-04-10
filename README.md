@@ -51,6 +51,9 @@ This is the circuit diagram for one of our autonomous RC vehicles.
   - This also includes some original/modified code to understand how each component works better.
 - You can load any of the code into the Arduino to test components, or load the main code to see all of it working together.
 
+# Problems
+![CS179JERASERPresentation pptx-PowerPoint2024-04-0917-58-50-ezgif com-video-to-gif-converter](https://github.com/seanjyi8424/autoMaze-UCR/assets/108261874/d0d3ff9f-292e-4e99-ae51-469efebacf82)
+
 # References
 - [Arduino](https://www.arduino.cc/)
 - [Lafvintech Tutorials](https://lafvintech.com/pages/tutorials)
