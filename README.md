@@ -1,4 +1,6 @@
 # CS179J - Autonomous Path Finding Vehicle
+![weekndmaze](https://github.com/seanjyi8424/autoMaze-UCR/assets/108261874/f68fff8e-6559-4d5d-b9be-d1cd1c0729f4)
+
 ##### Project Group ERASER: Eric Choi, Artip Nakchinda, Sean Yi
 This project is about two autonomous RC cars working together to find an exit out of a maze. Final project for Senior Project course.
 
