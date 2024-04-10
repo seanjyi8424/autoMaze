@@ -4,6 +4,9 @@
 ##### Project Group ERASER: Eric Choi, Artip Nakchinda, Sean Yi
 This project is about two autonomous RC cars working together to find an exit out of a maze. Final project for Senior Project course.
 
+# Simple Path Execution
+![20240315_174003_AdobeExpress_AdobeExpress-ezgif com-video-to-gif-converter](https://github.com/seanjyi8424/autoMaze-UCR/assets/108261874/76f9495f-4c73-4398-921c-bcf69d595501)
+
 # Parts
 - 2x Arduino Uno (or any other Arduino)
 - 2x 2WD chassis
